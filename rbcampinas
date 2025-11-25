@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palpite Premiado - Formulário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card {
+            box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        .score-input::-webkit-outer-spin-button,
+        .score-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .score-input {
+            -moz-appearance: textfield;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+        .trophy-icon {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+
+    <script>
+        // ========================================
+        // 🎯 CONFIGURAÇÕES DO SORTEIO - EDITE AQUI!
+        // ========================================
+        const CONFIG = {
+            // 💰 PRÊMIO - Mude o valor do prêmio aqui
+            premio: "R$ 5.000,00",
+            premioDescricao: "em dinheiro + Kit Exclusivo do Campeão",
+            
+            // ⚽ TIMES DA PARTIDA - Mude os nomes dos times aqui (FIXOS, não editáveis pelo usuário)
+            timeA: "Flamengo",
+            timeB: "Palmeiras",
+            
+            // 📅 DATA DO JOGO - Mude a data do jogo aqui (formato: YYYY-MM-DD)
+            dataJogo: "2025-12-10",
+            
+            // 🎲 DATA DO SORTEIO - Quantos dias após hoje será o sorteio?
+            diasAteSorteio: 7,
+            
+            // 🎨 CORES DOS TIMES - Personalize as cores
+            corTimeA: "#E31C23", // Vermelho (Flamengo)
+            corTimeB: "#006437", // Verde (Palmeiras)
+            
+            // 📝 REGRAS DO SORTEIO
+            regras: [
+                "O palpite mais próximo do placar final vence",
+                "Em caso de empate, será realizado sorteio entre os vencedores",
+                "Apenas um palpite por CPF",
+                "Resultado será divulgado 24h após o jogo"
+            ],
+
+            // ===============================================
+            // 🔗 INTEGRAÇÃO COM GOOGLE FORMS - JÁ CONFIGURADO!
+            // ===============================================
+            GOOGLE_FORMS_ACTION_URL: "https://docs.google.com/forms/u/0/d/e/1FAIpQLScPD1ZHBLUw7XZlfVz0SaKMepStBAdBR9emrt8IkEbkIDJNIvUw/formResponse",
+            
+            GOOGLE_FORMS_MAP: {
+                nome_completo:  "entry.1816663972",
+                cidade:         "entry.411640816",
+                telefone:       "entry.1608985079",
+                cpf:            "entry.1328994654",
+                placar_time_a:  "entry.123445036",
+                placar_time_b:  "entry.305536384"
+            }
+        };
+        // ========================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('palpiteForm');
+            const messageDiv = document.getElementById('message');
+            const drawDateDisplay = document.getElementById('drawDateDisplay');
+            const premioDisplay = document.getElementById('premioDisplay');
+            const premioDescDisplay = document.getElementById('premioDescDisplay');
+            const regrasContainer = document.getElementById('regrasContainer');
+
+            // Aplicar configurações na página
+            document.getElementById('display_time_a').textContent = CONFIG.timeA;
+            document.getElementById('display_time_b').textContent = CONFIG.timeB;
+            premioDisplay.textContent = CONFIG.premio;
+            premioDescDisplay.textContent = CONFIG.premioDescricao;
+            
+            // Cores personalizadas dos times
+            const placarAInput = document.getElementById('placar_time_a');
+            const placarBInput = document.getElementById('placar_time_b');
+            placarAInput.style.borderColor = CONFIG.corTimeA;
+            placarAInput.style.color = CONFIG.corTimeA;
+            placarBInput.style.borderColor = CONFIG.corTimeB;
+            placarBInput.style.color = CONFIG.corTimeB;
+
+            // Exibir regras
+            CONFIG.regras.forEach(regra => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start';
+                li.innerHTML = `<span class="mr-2 text-green-600 font-bold">✓</span><span>${regra}</span>`;
+                regrasContainer.appendChild(li);
+            });
+
+            // Calcular e exibir data do sorteio
+            const drawDate = new Date();
+            drawDate.setDate(drawDate.getDate() + CONFIG.diasAteSorteio);
+            drawDateDisplay.textContent = drawDate.toLocaleDateString('pt-BR', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+
+            function showMessage(text, isError = false) {
+                messageDiv.textContent = text;
+                messageDiv.className = isError 
+                    ? 'p-4 rounded-xl bg-red-500 text-white text-sm font-semibold shadow-lg'
+                    : 'p-4 rounded-xl bg-green-500 text-white text-sm font-semibold shadow-lg';
+                messageDiv.classList.remove('hidden');
+                
+                // Auto-hide após 5 segundos
+                setTimeout(() => {
+                    messageDiv.classList.add('hidden');
+                }, 5000);
+            }
+
+            async function enviarParaGoogleForms(palpiteData) {
+                const formBody = new FormData();
+                
+                // Mapear dados para os entry IDs do Google Forms
+                for (const [campoLocal, entryId] of Object.entries(CONFIG.GOOGLE_FORMS_MAP)) {
+                    formBody.append(entryId, palpiteData[campoLocal] ?? "");
+                }
+
+                try {
+                    await fetch(CONFIG.GOOGLE_FORMS_ACTION_URL, {
+                        method: "POST",
+                        mode: "no-cors", // Necessário para Google Forms
+                        body: formBody
+                    });
+                    
+                    showMessage("🎉 Palpite registrado com sucesso! Boa sorte!");
+                    form.reset();
+                    placarAInput.value = 0;
+                    placarBInput.value = 0;
+                } catch (e) {
+                    console.error(e);
+                    showMessage("❌ Erro ao enviar. Tente novamente.", true);
+                }
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                messageDiv.classList.add('hidden');
+
+                const formData = new FormData(form);
+                const placarA = parseInt(formData.get('placar_time_a') || '0');
+                const placarB = parseInt(formData.get('placar_time_b') || '0');
+
+                // Validação de campos obrigatórios
+                const requiredFields = ['nome_completo', 'cidade', 'telefone', 'cpf'];
+                for (const field of requiredFields) {
+                    if (!formData.get(field)) {
+                        showMessage(`⚠️ O campo '${field.replace('_', ' ')}' é obrigatório.`, true);
+                        return;
+                    }
+                }
+
+                // Validação de CPF (11 dígitos)
+                const cpfLimpo = formData.get('cpf').replace(/\D/g, '');
+                if (cpfLimpo.length !== 11) {
+                    showMessage("⚠️ CPF deve ter 11 dígitos.", true);
+                    return;
+                }
+
+                // Validação de telefone (10 ou 11 dígitos)
+                const telLimpo = formData.get('telefone').replace(/\D/g, '');
+                if (telLimpo.length < 10 || telLimpo.length > 11) {
+                    showMessage("⚠️ Telefone inválido. Use (XX) XXXXX-XXXX", true);
+                    return;
+                }
+
+                const palpiteData = {
+                    nome_completo: formData.get('nome_completo'),
+                    cidade: formData.get('cidade'),
+                    telefone: formData.get('telefone'),
+                    cpf: formData.get('cpf'),
+                    placar_time_a: placarA,
+                    placar_time_b: placarB
+                };
+
+                await enviarParaGoogleForms(palpiteData);
+            });
+            
+            // Validação de placar (0-99)
+            document.querySelectorAll('.score-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    let value = parseInt(e.target.value);
+                    if (isNaN(value) || value < 0) {
+                        e.target.value = 0;
+                    }
+                    if (value > 99) {
+                        e.target.value = 99;
+                    }
+                });
+            });
+
+            // Máscara de telefone (XX) XXXXX-XXXX
+            document.getElementById('telefone').addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length <= 11) {
+                    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+                    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+                    e.target.value = value;
+                }
+            });
+
+            // Máscara de CPF XXX.XXX.XXX-XX
+            document.getElementById('cpf').addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length <= 11) {
+                    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                    e.target.value = value;
+                }
+            });
+        });
+    </script>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-6">
+
+    <div class="w-full max-w-5xl bg-white/95 card rounded-3xl p-6 sm:p-10">
+
+        <!-- Header Premium -->
+        <header class="text-center mb-8 relative">
+            <div class="trophy-icon text-7xl mb-4">🏆</div>
+            <h1 class="text-5xl font-extrabold gradient-text mb-3">Palpite Premiado</h1>
+            <p class="text-2xl text-gray-700 font-semibold mb-4">Acerte o placar e ganhe prêmios incríveis!</p>
+            
+            <!-- Card do Prêmio -->
+            <div class="mt-6 p-6 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 rounded-2xl text-white shadow-2xl transform hover:scale-105 transition duration-300">
+                <p class="text-sm font-semibold uppercase tracking-wider mb-1">🎁 Prêmio Total</p>
+                <p class="text-4xl font-extrabold mb-2" id="premioDisplay">R$ 5.000,00</p>
+                <p class="text-sm font-medium" id="premioDescDisplay">em dinheiro + Kit Exclusivo do Campeão</p>
+            </div>
+
+            <!-- Info do Sorteio -->
+            <div class="mt-6 p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl border-2 border-purple-300">
+                <p class="font-bold text-purple-800 text-lg">📅 Sorteio: <span id="drawDateDisplay" class="text-xl pulse-animation">--</span></p>
+            </div>
+        </header>
+
+        <form id="palpiteForm" class="space-y-6">
+
+            <!-- Mensagens de Feedback -->
+            <div id="message" class="hidden"></div>
+            
+            <!-- SEÇÃO 1: Partida e Placar -->
+            <div class="p-8 rounded-2xl bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 border-2 border-purple-300 shadow-inner">
+                <h2 class="text-2xl font-bold text-purple-800 mb-3 flex items-center justify-center">
+                    <span class="text-3xl mr-3">⚽</span> Partida do Dia
+                </h2>
+                
+                <p class="text-center text-gray-600 mb-6 font-medium">Qual será o placar final?</p>
+
+                <!-- Placar Visual -->
+                <div class="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-6 mb-6 bg-white p-8 rounded-2xl shadow-xl">
+                    <div class="flex flex-col items-center">
+                        <span id="display_time_a" class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">Flamengo</span>
+                        <input type="number" id="placar_time_a" name="placar_time_a" min="0" max="99" value="0" required
+                               class="score-input w-28 h-28 text-6xl text-center font-extrabold border-4 rounded-2xl p-2 focus:ring-4 focus:ring-opacity-50 transition duration-150 shadow-lg">
+                    </div>
+                    
+                    <span class="text-6xl font-extrabold text-gray-400 mx-4">×</span>
+                    
+                    <div class="flex flex-col items-center">
+                        <span id="display_time_b" class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">Palmeiras</span>
+                        <input type="number" id="placar_time_b" name="placar_time_b" min="0" max="99" value="0" required
+                               class="score-input w-28 h-28 text-6xl text-center font-extrabold border-4 rounded-2xl p-2 focus:ring-4 focus:ring-opacity-50 transition duration-150 shadow-lg">
+                    </div>
+                </div>
+
+                <p class="text-center text-sm text-gray-500 italic">💡 Dica: Use as setas do teclado ou digite o placar</p>
+            </div>
+
+            <!-- SEÇÃO 2: Dados Pessoais -->
+            <div class="p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300">
+                <h2 class="text-2xl font-bold text-blue-800 mb-5 flex items-center">
+                    <span class="text-3xl mr-3">👤</span> Seus Dados
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    
+                    <div class="sm:col-span-2">
+                        <label for="nome_completo" class="block text-sm font-bold text-gray-700 mb-2">📝 Nome Completo</label>
+                        <input type="text" id="nome_completo" name="nome_completo" required
+                               class="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-400 focus:border-blue-500 transition duration-150"
+                               placeholder="Ex: João da Silva">
+                    </div>
+                    
+                    <div>
+                        <label for="cidade" class="block text-sm font-bold text-gray-700 mb-2">🏙️ Sua Cidade</label>
+                        <input type="text" id="cidade" name="cidade" required
+                               class="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-400 focus:border-blue-500 transition duration-150"
+                               placeholder="Ex: São Paulo">
+                    </div>
+
+                    <div>
+                        <label for="telefone" class="block text-sm font-bold text-gray-700 mb-2">📱 WhatsApp</label>
+                        <input type="tel" id="telefone" name="telefone" required maxlength="15"
+                               class="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-400 focus:border-blue-500 transition duration-150" 
+                               placeholder="(11) 99999-9999">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="cpf" class="block text-sm font-bold text-gray-700 mb-2">🆔 CPF</label>
+                        <input type="text" id="cpf" name="cpf" required maxlength="14"
+                               class="w-full p-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-400 focus:border-blue-500 transition duration-150" 
+                               placeholder="000.000.000-00">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regras -->
+            <div class="p-6 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300">
+                <h3 class="text-xl font-bold text-amber-800 mb-4 flex items-center">
+                    <span class="text-2xl mr-2">📋</span> Regras do Sorteio
+                </h3>
+                <ul id="regrasContainer" class="space-y-2 text-gray-700 text-sm font-medium">
+                    <!-- Regras inseridas via JavaScript -->
+                </ul>
+            </div>
+
+            <!-- Botão de Envio -->
+            <div class="pt-4">
+                <button type="submit"
+                        class="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-extrabold text-2xl rounded-2xl hover:from-green-600 hover:to-emerald-700 transition duration-300 transform hover:scale-[1.02] shadow-2xl focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 flex items-center justify-center">
+                    <span class="mr-3 text-3xl">🚀</span>
+                    Registrar Meu Palpite Vencedor!
+                </button>
+            </div>
+            
+            <p class="text-xs text-center text-gray-500 pt-2">🔒 Seus dados estão seguros. Ao participar, você concorda com os termos do sorteio.</p>
+
+        </form>
+    </div>
+
+</body>
+</html>
