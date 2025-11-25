@@ -25,11 +25,13 @@
             -moz-appearance: textfield;
         }
         .gradient-text {
-            /* Dourado/Branco para o contraste */
-            background: linear-gradient(135deg, #ffffff 0%, #d19563 40%, #ffffff 80%);
+            /* DOURADO/BRANCO para o contraste. Ajustado para ser mais forte. */
+            background: linear-gradient(135deg, #fefefe 10%, #d19563 50%, #fefefe 90%); 
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            /* Adiciona uma sombra sutil para dar mais vida ao texto */
+            text-shadow: 0 0 5px rgba(209, 149, 99, 0.5);
         }
         .trophy-icon {
             animation: bounce 2s infinite;
@@ -37,6 +39,47 @@
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
+        }
+        /* Estilos específicos para a frequência em destaque */
+        .frequency-highlight {
+            font-size: 2.5rem; /* Aumenta o tamanho da fonte */
+            font-weight: 800;
+            color: #1d244a; /* Azul escuro */
+            background-color: #d19563; /* Dourado */
+            padding: 4px 12px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        /* Estilo para mover o 85,7 FM para a direita da logo principal no desktop */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap; /* Permite quebrar linha em mobile */
+        }
+        .logo-details {
+            flex-grow: 1;
+        }
+        .frequency-box {
+            order: 2; /* Move para a direita no layout padrão */
+            margin-left: auto;
+            align-self: flex-start;
+        }
+        @media (max-width: 768px) {
+             .frequency-box {
+                order: 0; /* Volta para cima em telas pequenas */
+                width: 100%;
+                text-align: center;
+                margin-bottom: 1rem;
+            }
+            .logo-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .logo-details {
+                text-align: center;
+            }
         }
     </style>
 
@@ -59,8 +102,8 @@
             // 🎲 DATA DO SORTEIO - Quantos dias após hoje será o sorteio?
             diasAteSorteio: 7,
 
-            // 🎨 CORES DOS TIMES
-            corTimeA: "#1d244a",   // Azul RB
+            // 🎨 CORES DOS TIMES (Neutras - Azul Marinho e Dourado da RB)
+            corTimeA: "#1d244a",   // Azul Marinho RB
             corTimeB: "#d19563",   // Dourado RB
 
             // 📝 REGRAS DO SORTEIO (TEXTO MOSTRADO NA TELA)
@@ -83,7 +126,7 @@
                 cpf:            "entry.1328994654",
                 placar_time_a:  "entry.123445036",
                 placar_time_b:  "entry.305536384",
-                // ENTRADA DE VENCEDOR/EMPATE (ID FORNECIDO PELO USUÁRIO)
+                // ENTRADA DE VENCEDOR/EMPATE 
                 escolha:        "entry.1961379205" 
             }
         };
@@ -100,11 +143,12 @@
             const premioDisplay = document.getElementById('premioDisplay');
             const premioDescDisplay = document.getElementById('premioDescDisplay');
             const regrasContainer = document.getElementById('regrasContainer');
+            const submitButton = document.getElementById('submitButton'); // Novo ID para o botão
 
             // Configurações de exibição de nomes dos times no HTML
             const displayTimeAHeader = document.getElementById('display_time_a');
             const displayTimeBHeader = document.getElementById('display_time_b');
-            const dataJogoDisplay = document.getElementById('dataJogoDisplay'); // Novo ID para a data
+            const dataJogoDisplay = document.getElementById('dataJogoDisplay'); 
 
             // Campo escondido para armazenar a escolha (Vencedor/Empate)
             const escolhaHiddenInput = document.getElementById('escolha_vencedor');
@@ -154,7 +198,6 @@
             CONFIG.regras.forEach(regra => {
                 const li = document.createElement('li');
                 li.className = 'flex items-start';
-                // Usando a cor de destaque para o 'check'
                 li.innerHTML = `<span class="mr-2 text-[#d19563] font-bold">✓</span><span class="text-gray-200">${regra}</span>`;
                 regrasContainer.appendChild(li);
             });
@@ -168,24 +211,25 @@
 
             function showMessage(text, isError = false) {
                 messageDiv.textContent = text;
+                // A mensagem não some mais.
                 messageDiv.className = isError 
                     ? 'p-4 rounded-xl bg-red-600 text-white text-sm font-semibold shadow-lg'
                     : 'p-4 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-lg';
                 messageDiv.classList.remove('hidden');
-                
-                // Auto-hide após 5 segundos
-                setTimeout(() => {
-                    messageDiv.classList.add('hidden');
-                }, 5000);
             }
 
             async function enviarParaGoogleForms(palpiteData) {
                 const { GOOGLE_FORMS_ACTION_URL, GOOGLE_FORMS_MAP } = CONFIG;
                 
+                submitButton.disabled = true;
+                submitButton.textContent = 'Enviando...';
+
                 // Verifica Entry IDs faltantes
                 const hasEmptyEntries = Object.values(GOOGLE_FORMS_MAP).some(v => !v);
                 if (hasEmptyEntries) {
                     showMessage("⚠️ Erro de Configuração: Pelo menos um Entry ID está faltando no GOOGLE_FORMS_MAP.", true);
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Registrar meu palpite na RB Campinas!';
                     return;
                 }
 
@@ -194,7 +238,6 @@
                 // Mapear dados para os entry IDs do Google Forms
                 for (const [campoLocal, entryId] of Object.entries(GOOGLE_FORMS_MAP)) {
                     let valor = palpiteData[campoLocal] ?? "";
-                    // Limpar CPF e Telefone antes de enviar
                     if (campoLocal === 'cpf' || campoLocal === 'telefone') {
                         valor = valor.replace(/\D/g, ''); 
                     }
@@ -215,16 +258,19 @@
                         nome: palpiteData.nome_completo
                     }));
 
-                    showMessage("🎉 Palpite registrado com sucesso! Boa sorte!", false);
-                    form.reset();
-                    placarAInput.value = 0;
-                    placarBInput.value = 0;
-                    updateVencedor(); // Resetar o campo escondido
+                    showMessage("🎉 Palpite registrado com sucesso! (Recarregue para fazer um novo palpite)", false);
+                    
+                    // Bloqueia o botão e muda o texto para confirmar o sucesso
+                    submitButton.textContent = '✅ Palpite Registrado!';
+                    submitButton.classList.remove('bg-gradient-to-r', 'from-[#d19563]', 'to-[#1d244a]', 'hover:from-[#c3834a]', 'hover:to-[#0f1530]');
+                    submitButton.classList.add('bg-gray-400');
+                    submitButton.disabled = true; // Mantém desabilitado
+
                 } catch (e) {
-                    // O modo 'no-cors' impede a leitura do status real do erro.
-                    // Se o forms não estiver configurado corretamente, a submissão falhará silenciosamente aqui.
                     console.error("Erro potencial ao enviar (pode ser problema de CORS ou Forms ID): ", e);
                     showMessage("❌ Erro ao enviar seu palpite. Verifique se o Google Forms está configurado corretamente.", true);
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Registrar meu palpite na RB Campinas!';
                 }
             }
 
@@ -332,20 +378,27 @@
 
         <!-- Header RB Campinas -->
         <header class="mb-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <div class="flex items-center space-x-4">
+            <!-- Container do Logo e Frequência (Novo Layout) -->
+            <div class="logo-container mb-6">
+                <!-- Box da Frequência (Posição 1 em Desktop) -->
+                <div class="frequency-box flex justify-center items-center md:order-3 md:ml-0 md:mr-0 mb-4 md:mb-0">
+                    <span class="frequency-highlight">85,7 FM</span>
+                </div>
+                
+                <!-- Detalhes da Logo (Posição 2 em Desktop) -->
+                <div class="logo-details flex items-center space-x-4">
                     <img src="https://play-lh.googleusercontent.com/Kdal1GUehZpADlqztmdjjDKlaRWcQksHz_97RM9I5d_PuaK5KDnhusOkQHVOu8IsEak" 
-                         alt="RB Campinas" class="w-20 h-20 rounded-xl border-2 border-[#1d244a] object-contain bg-white">
+                         alt="RB Campinas" class="w-20 h-20 rounded-xl border-2 border-[#1d244a] object-contain bg-white flex-shrink-0">
                     <div>
                         <p class="text-xs font-semibold text-[#1d244a] uppercase tracking-widest">Rádio Bandeirantes Campinas</p>
-                        <p class="text-lg font-extrabold text-[#1d244a]">RB Campinas 85,7 FM</p>
-                        <p class="text-xs text-gray-600 mt-1">Fechada com você, fechada com a verdade.<br>A primeira rádio de Campinas. Desde 23/11/1933.</p>
+                        <p class="text-lg font-extrabold text-[#1d244a]">RB Campinas</p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <img src="https://m.media-amazon.com/images/I/510aQeFauWL.png" 
-                         alt="Bandeirantes" class="w-16 h-16 object-contain bg-white rounded-xl border border-gray-200">
-                </div>
+            </div>
+
+            <!-- Frase Centralizada -->
+            <div class="text-center md:text-left mt-[-10px] mb-4">
+                <p class="text-xs text-gray-600">Fechada com você, fechada com a verdade. A primeira rádio de Campinas. Desde 23/11/1933.</p>
             </div>
 
             <div class="text-center mb-4">
@@ -371,7 +424,7 @@
 
         <form id="palpiteForm" class="space-y-6">
 
-            <!-- Mensagens de Feedback -->
+            <!-- Mensagens de Feedback (Permanecem visíveis após sucesso) -->
             <div id="message" class="hidden"></div>
             
             <!-- SEÇÃO 1: Partida e Placar -->
@@ -454,7 +507,7 @@
 
             <!-- Botão de Envio -->
             <div class="pt-4">
-                <button type="submit"
+                <button type="submit" id="submitButton"
                         class="w-full py-5 bg-gradient-to-r from-[#d19563] to-[#1d244a] text-white font-extrabold text-2xl rounded-2xl hover:from-[#c3834a] hover:to-[#0f1530] transition duration-300 transform hover:scale-[1.02] shadow-2xl focus:outline-none focus:ring-4 focus:ring-[#d19563aa] flex items-center justify-center">
                     <span class="mr-3 text-3xl">🚀</span>
                     Registrar meu palpite na RB Campinas!
