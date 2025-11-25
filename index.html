@@ -25,6 +25,7 @@
             -moz-appearance: textfield;
         }
         .gradient-text {
+            /* Dourado/Branco para o contraste */
             background: linear-gradient(135deg, #ffffff 0%, #d19563 40%, #ffffff 80%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -39,7 +40,7 @@
         }
     </style>
 
-    <script>
+    <script type="module">
         // ========================================
         // 🎯 CONFIGURAÇÕES DO SORTEIO - EDITE AQUI!
         // ========================================
@@ -48,12 +49,12 @@
             premio: "R$ 5.000,00",
             premioDescricao: "em vale-compras + kit exclusivo RB Campinas",
 
-            // ⚽ TIMES DA PARTIDA - Mude os nomes dos times aqui
-            timeA: "Time da Casa",
-            timeB: "Time Visitante",
+            // ⚽ TIMES DA PARTIDA - Mude os nomes dos times aqui (Exemplo: Palmeiras x São Paulo)
+            timeA: "Palmeiras",
+            timeB: "São Paulo",
 
             // 📅 DATA DO JOGO (YYYY-MM-DD)
-            dataJogo: "2025-12-10",
+            dataJogo: "2025-12-15",
 
             // 🎲 DATA DO SORTEIO - Quantos dias após hoje será o sorteio?
             diasAteSorteio: 7,
@@ -71,22 +72,25 @@
                 "Promoção válida apenas para participantes maiores de 18 anos."
             ],
 
-            // 🔗 GOOGLE FORMS (já configurado com seus entry IDs)
+            // 🔗 GOOGLE FORMS
             GOOGLE_FORMS_ACTION_URL: "https://docs.google.com/forms/u/0/d/e/1FAIpQLScPD1ZHBLUw7XZlfVz0SaKMepStBAdBR9emrt8IkEbkIDJNIvUw/formResponse",
 
+            // ⚠️ ENTRY IDs DO SEU GOOGLE FORMS - CONFIRA TODOS AQUI!
             GOOGLE_FORMS_MAP: {
                 nome_completo:  "entry.1816663972",
                 cidade:         "entry.411640816",
                 telefone:       "entry.1608985079",
                 cpf:            "entry.1328994654",
                 placar_time_a:  "entry.123445036",
-                placar_time_b:  "entry.305536384"
+                placar_time_b:  "entry.305536384",
+                // ENTRADA DE VENCEDOR/EMPATE (ID FORNECIDO PELO USUÁRIO)
+                escolha:        "entry.1961379205" 
             }
         };
         // ========================================
 
-        // ID único do jogo para controle de “1 palpite por jogo”
-        const JOGO_ID = `${CONFIG.timeA}_${CONFIG.timeB}_${CONFIG.dataJogo}`;
+        // ID único do jogo para controle de “1 palpite por jogo” usando localStorage
+        const JOGO_ID = `${CONFIG.timeA}_${CONFIG.timeB}_${CONFIG.dataJogo}`.replace(/[^a-zA-Z0-9]/g, '_');
         const STORAGE_KEY = `palpite_${JOGO_ID}`;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -97,27 +101,61 @@
             const premioDescDisplay = document.getElementById('premioDescDisplay');
             const regrasContainer = document.getElementById('regrasContainer');
 
-            // Identidade visual RB
-            document.body.style.background = "radial-gradient(circle at top, #1d244a 0%, #000000 55%, #000000 100%)";
+            // Configurações de exibição de nomes dos times no HTML
+            const displayTimeAHeader = document.getElementById('display_time_a');
+            const displayTimeBHeader = document.getElementById('display_time_b');
+            const dataJogoDisplay = document.getElementById('dataJogoDisplay'); // Novo ID para a data
 
-            // Aplicar configurações na página
-            document.getElementById('display_time_a').textContent = CONFIG.timeA;
-            document.getElementById('display_time_b').textContent = CONFIG.timeB;
+            // Campo escondido para armazenar a escolha (Vencedor/Empate)
+            const escolhaHiddenInput = document.getElementById('escolha_vencedor');
+
+            // Aplica nomes dos times e data da CONFIG
+            if (displayTimeAHeader) displayTimeAHeader.textContent = CONFIG.timeA;
+            if (displayTimeBHeader) displayTimeBHeader.textContent = CONFIG.timeB;
+            if (dataJogoDisplay) dataJogoDisplay.textContent = CONFIG.dataJogo;
+
             premioDisplay.textContent = CONFIG.premio;
             premioDescDisplay.textContent = CONFIG.premioDescricao;
 
             const placarAInput = document.getElementById('placar_time_a');
             const placarBInput = document.getElementById('placar_time_b');
+            
+            // Cores personalizadas dos placares
             placarAInput.style.borderColor = CONFIG.corTimeA;
             placarAInput.style.color = CONFIG.corTimeA;
             placarBInput.style.borderColor = CONFIG.corTimeB;
             placarBInput.style.color = CONFIG.corTimeB;
+            
+            // Função para atualizar o campo escondido 'escolha' com base no placar
+            function updateVencedor() {
+                const placarA = parseInt(placarAInput.value || 0);
+                const placarB = parseInt(placarBInput.value || 0);
 
-            // Regras
+                let vencedor = 'Empate';
+                if (placarA > placarB) {
+                    vencedor = CONFIG.timeA;
+                } else if (placarB > placarA) {
+                    vencedor = CONFIG.timeB;
+                }
+
+                // Armazena a escolha no campo escondido
+                escolhaHiddenInput.value = vencedor;
+            }
+
+            // Adiciona listeners para atualizar o vencedor sempre que o placar mudar
+            placarAInput.addEventListener('input', updateVencedor);
+            placarBInput.addEventListener('input', updateVencedor);
+            
+            // Inicializa o valor
+            updateVencedor();
+
+
+            // Exibir regras
             CONFIG.regras.forEach(regra => {
                 const li = document.createElement('li');
                 li.className = 'flex items-start';
-                li.innerHTML = `<span class="mr-2 text-green-600 font-bold">✓</span><span>${regra}</span>`;
+                // Usando a cor de destaque para o 'check'
+                li.innerHTML = `<span class="mr-2 text-[#d19563] font-bold">✓</span><span class="text-gray-200">${regra}</span>`;
                 regrasContainer.appendChild(li);
             });
 
@@ -134,23 +172,43 @@
                     ? 'p-4 rounded-xl bg-red-600 text-white text-sm font-semibold shadow-lg'
                     : 'p-4 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-lg';
                 messageDiv.classList.remove('hidden');
+                
+                // Auto-hide após 5 segundos
+                setTimeout(() => {
+                    messageDiv.classList.add('hidden');
+                }, 5000);
             }
 
             async function enviarParaGoogleForms(palpiteData) {
-                const formBody = new FormData();
+                const { GOOGLE_FORMS_ACTION_URL, GOOGLE_FORMS_MAP } = CONFIG;
+                
+                // Verifica Entry IDs faltantes
+                const hasEmptyEntries = Object.values(GOOGLE_FORMS_MAP).some(v => !v);
+                if (hasEmptyEntries) {
+                    showMessage("⚠️ Erro de Configuração: Pelo menos um Entry ID está faltando no GOOGLE_FORMS_MAP.", true);
+                    return;
+                }
 
-                for (const [campoLocal, entryId] of Object.entries(CONFIG.GOOGLE_FORMS_MAP)) {
-                    formBody.append(entryId, palpiteData[campoLocal] ?? "");
+                const formBody = new FormData();
+                
+                // Mapear dados para os entry IDs do Google Forms
+                for (const [campoLocal, entryId] of Object.entries(GOOGLE_FORMS_MAP)) {
+                    let valor = palpiteData[campoLocal] ?? "";
+                    // Limpar CPF e Telefone antes de enviar
+                    if (campoLocal === 'cpf' || campoLocal === 'telefone') {
+                        valor = valor.replace(/\D/g, ''); 
+                    }
+                    formBody.append(entryId, valor);
                 }
 
                 try {
-                    await fetch(CONFIG.GOOGLE_FORMS_ACTION_URL, {
+                    await fetch(GOOGLE_FORMS_ACTION_URL, {
                         method: "POST",
                         mode: "no-cors",
                         body: formBody
                     });
 
-                    // Se chegou até aqui sem erro de JS, consideramos enviado
+                    // Armazenar a confirmação de palpite localmente
                     localStorage.setItem(STORAGE_KEY, JSON.stringify({
                         cpf: palpiteData.cpf.replace(/\D/g, ''),
                         telefone: palpiteData.telefone.replace(/\D/g, ''),
@@ -161,9 +219,12 @@
                     form.reset();
                     placarAInput.value = 0;
                     placarBInput.value = 0;
+                    updateVencedor(); // Resetar o campo escondido
                 } catch (e) {
-                    console.error(e);
-                    showMessage("❌ Erro ao enviar seu palpite. Tente novamente em alguns instantes.", true);
+                    // O modo 'no-cors' impede a leitura do status real do erro.
+                    // Se o forms não estiver configurado corretamente, a submissão falhará silenciosamente aqui.
+                    console.error("Erro potencial ao enviar (pode ser problema de CORS ou Forms ID): ", e);
+                    showMessage("❌ Erro ao enviar seu palpite. Verifique se o Google Forms está configurado corretamente.", true);
                 }
             }
 
@@ -175,7 +236,7 @@
                 const placarA = parseInt(formData.get('placar_time_a') || '0');
                 const placarB = parseInt(formData.get('placar_time_b') || '0');
 
-                // Campos obrigatórios
+                // Validação de campos obrigatórios
                 const requiredFields = ['nome_completo', 'cidade', 'telefone', 'cpf'];
                 for (const field of requiredFields) {
                     if (!formData.get(field)) {
@@ -187,33 +248,31 @@
                 const cpfLimpo = formData.get('cpf').replace(/\D/g, '');
                 const telLimpo = formData.get('telefone').replace(/\D/g, '');
 
-                // Valida CPF (11 dígitos) – não é validação de dígito verificador, só tamanho
+                // Validações de formato (tamanho)
                 if (cpfLimpo.length !== 11) {
                     showMessage("⚠️ CPF deve ter 11 dígitos numéricos.", true);
                     return;
                 }
-
-                // Valida telefone (10 ou 11 dígitos)
                 if (telLimpo.length < 10 || telLimpo.length > 11) {
                     showMessage("⚠️ Telefone inválido. Use DDD + número.", true);
                     return;
                 }
 
-                // Verificar se já existe palpite para esse jogo neste navegador
+                // Verificar se já existe palpite para esse jogo neste navegador (Anti-duplicidade)
                 const existing = localStorage.getItem(STORAGE_KEY);
                 if (existing) {
                     try {
                         const data = JSON.parse(existing);
-                        // Se qualquer um dos 3 bater (nome, tel ou cpf), bloqueia
+                        // Filtro de duplicidade: CPF ou Telefone ou Nome iguais
                         if (
                             data.cpf === cpfLimpo ||
                             data.telefone === telLimpo ||
                             (data.nome || "").trim().toLowerCase() === (formData.get('nome_completo') || "").trim().toLowerCase()
                         ) {
-                            showMessage("⚠️ Você já registrou um palpite para este jogo. Aguarde o próximo confronto para participar novamente.", true);
+                            showMessage("⚠️ Você já registrou um palpite para este jogo. Tente novamente no próximo confronto.", true);
                             return;
                         }
-                    } catch (_) { /* ignora erro de parse */ }
+                    } catch (_) { /* Ignora erro de parse */ }
                 }
 
                 const palpiteData = {
@@ -222,7 +281,9 @@
                     telefone: formData.get('telefone'),
                     cpf: formData.get('cpf'),
                     placar_time_a: placarA,
-                    placar_time_b: placarB
+                    placar_time_b: placarB,
+                    // Pega o valor do campo escondido, que foi preenchido automaticamente
+                    escolha: escolhaHiddenInput.value
                 };
 
                 await enviarParaGoogleForms(palpiteData);
@@ -238,6 +299,7 @@
                     if (value > 99) {
                         e.target.value = 99;
                     }
+                    updateVencedor(); // Atualiza o campo escondido ao mudar o placar
                 });
             });
 
@@ -301,7 +363,7 @@
                 </div>
                 <div class="text-sm text-right">
                     <p class="font-semibold text-[#d19563]">Jogo válido em:</p>
-                    <p class="font-bold text-white text-base">Data do jogo: <span class="font-semibold text-[#d19563]">${CONFIG ? CONFIG.dataJogo : ""}</span></p>
+                    <p class="font-bold text-white text-base">Data do jogo: <span id="dataJogoDisplay" class="font-semibold text-[#d19563]">--</span></p>
                     <p class="mt-2 font-semibold text-white">Sorteio previsto até: <span id="drawDateDisplay" class="font-bold text-[#d19563]">--</span></p>
                 </div>
             </div>
@@ -323,7 +385,7 @@
                 <!-- Placar Visual -->
                 <div class="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-6 mb-6 bg-white p-6 rounded-2xl shadow-lg">
                     <div class="flex flex-col items-center">
-                        <span id="display_time_a" class="text-2xl md:text-3xl font-extrabold text-[#1d244a] mb-3">Time da Casa</span>
+                        <span id="display_time_a" class="text-2xl md:text-3xl font-extrabold text-[#1d244a] mb-3">Palmeiras</span>
                         <input type="number" id="placar_time_a" name="placar_time_a" min="0" max="99" value="0" required
                                class="score-input w-24 h-24 text-5xl text-center font-extrabold border-4 rounded-2xl p-2 focus:ring-4 focus:ring-[#1d244a55] transition duration-150 shadow-md">
                     </div>
@@ -331,13 +393,16 @@
                     <span class="text-5xl font-extrabold text-gray-400 mx-4">×</span>
                     
                     <div class="flex flex-col items-center">
-                        <span id="display_time_b" class="text-2xl md:text-3xl font-extrabold text-[#1d244a] mb-3">Time Visitante</span>
+                        <span id="display_time_b" class="text-2xl md:text-3xl font-extrabold text-[#1d244a] mb-3">São Paulo</span>
                         <input type="number" id="placar_time_b" name="placar_time_b" min="0" max="99" value="0" required
                                class="score-input w-24 h-24 text-5xl text-center font-extrabold border-4 rounded-2xl p-2 focus:ring-4 focus:ring-[#d1956355] transition duration-150 shadow-md">
                     </div>
                 </div>
-
-                <p class="text-center text-xs text-gray-500 italic">Use as setas do teclado ou digite o placar desejado.</p>
+                
+                <p class="text-center text-xs text-gray-500 italic">Use as setas do teclado ou digite o placar desejado. O campo Vencedor será preenchido automaticamente.</p>
+                
+                <!-- CAMPO ESCONDIDO: Usado para enviar a informação de quem ganhou/empatou para o Google Forms -->
+                <input type="hidden" id="escolha_vencedor" name="escolha_vencedor" value="Empate">
             </div>
 
             <!-- SEÇÃO 2: Dados Pessoais -->
